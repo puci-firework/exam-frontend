@@ -56,9 +56,25 @@ export const constantRoutes = [
   },
 
   {
+    path: '/exam',
+    component: Layout,
+    redirect: '/exam/list',
+    name: 'Exam',
+    children: [
+      {
+        path: 'list',
+        name: '考试列表',
+        component: () => import('@/views/table/index'),
+        meta: { title: '考试', icon: 'el-icon-s-help' }
+      }
+    ]
+  },
+
+  {
     path: '/example',
     component: Layout,
     redirect: '/example/table',
+    hidden: true,
     name: 'Example',
     meta: { title: 'Example', icon: 'el-icon-s-help' },
     children: [
@@ -80,6 +96,7 @@ export const constantRoutes = [
   {
     path: '/form',
     component: Layout,
+    hidden: true,
     children: [
       {
         path: 'index',
@@ -95,6 +112,7 @@ export const constantRoutes = [
     component: Layout,
     redirect: '/nested/menu1',
     name: 'Nested',
+    hidden: true,
     meta: {
       title: 'Nested',
       icon: 'nested'
@@ -152,6 +170,7 @@ export const constantRoutes = [
   {
     path: 'external-link',
     component: Layout,
+    hidden: true,
     children: [
       {
         path: 'https://panjiachen.github.io/vue-element-admin-site/#/',
