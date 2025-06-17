@@ -68,7 +68,7 @@
 </template>
 
 <script>
-import { getList } from '@/api/exam'
+import { getExamList } from '@/api/exam'
 
 export default {
   filters: {
