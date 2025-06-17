@@ -143,6 +143,10 @@ export default {
       } else {
         this.$store.dispatch('app/toggleSideBarHide', false)
       }
+    },
+    async logout() {
+      await this.$store.dispatch('user/logout')
+      this.$router.push(`/login?redirect=${this.$route.fullPath}`)
     }
   }
 }

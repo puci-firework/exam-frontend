@@ -64,7 +64,7 @@ export const constantRoutes = [
       {
         path: 'list',
         name: '考试列表',
-        component: () => import('@/views/table/index'),
+        component: () => import('@/views/exam/index'),
         meta: { title: '考试', icon: 'el-icon-s-help' }
       }
     ]
@@ -81,7 +81,7 @@ export const constantRoutes = [
       {
         path: 'table',
         name: 'Table',
-        component: () => import('@/views/table/index'),
+        component: () => import('@/views/exam/index'),
         meta: { title: 'Table', icon: 'table' }
       },
       {
