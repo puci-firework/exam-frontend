@@ -145,8 +145,14 @@ export default {
       }
     },
     async logout() {
-      await this.$store.dispatch('user/logout')
-      this.$router.push(`/login?redirect=${this.$route.fullPath}`)
+      try {
+        await this.$store.dispatch('user/logout', this.$store.getters.userId)
+        this.$router.push(`/login?redirect=${this.$route.fullPath}`)
+      } catch (error) {
+        console.error('登出失败:', error)
+        // 即使API调用失败也跳转到登录页
+        this.$router.push('/login')
+      }
     }
   }
 }
