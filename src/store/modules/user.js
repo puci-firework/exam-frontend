@@ -74,17 +74,26 @@ const actions = {
     })
   },
 
-  // user logout
   logout({ commit, state }) {
     return new Promise((resolve, reject) => {
-      logout(state.token).then(() => {
-        removeToken() // must remove  token  first
+      // 从state中获取userId，或者从getters中获取
+      const userId = state.userId
+
+      // 调用API时传递userId
+      logout(userId).then(() => {
+        removeToken() // 必须先移除token
+        removeUserId() // 移除userId
         removeName()
-        removeUserId()
         resetRouter()
         commit('RESET_STATE')
         resolve()
       }).catch(error => {
+        // 即使API调用失败，也清除前端状态
+        removeToken()
+        removeUserId()
+        removeName()
+        resetRouter()
+        commit('RESET_STATE')
         reject(error)
       })
     })
