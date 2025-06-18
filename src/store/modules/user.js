@@ -1,15 +1,14 @@
 import { login, logout, getInfo } from '@/api/user'
 import { getToken, setToken, removeToken } from '@/utils/auth'
-import { getUserId, setUserId, removeUserId } from '@/utils/auth'
-import { getName, setName, removeName } from '@/utils/auth'
 import { resetRouter } from '@/router'
 import { set } from 'nprogress'
 
 const getDefaultState = () => {
   return {
     token: getToken(),
-    userId: getUserId(),
-    name: getName(),
+    id: '',
+    name: '',
+    role: '',
     avatar: ''
   }
 }
@@ -24,8 +23,14 @@ const mutations = {
     // console.log('Setting token:', token)
     state.token = token
   },
+  SET_ID: (state, id) => {
+    state.id = id
+  },
   SET_NAME: (state, name) => {
     state.name = name
+  },
+  SET_ROLE: (state, role) => {
+    state.role = role
   },
   SET_AVATAR: (state, avatar) => {
     state.avatar = avatar
@@ -41,10 +46,7 @@ const actions = {
         const { data } = response
         console.log('Login response:', data.data.token)
         commit('SET_TOKEN', data.data.token)
-        commit('SET_NAME', data.data.username)
         setToken(data.data.token)
-        setUserId(data.data.userId)
-        setName(data.data.username)
         resolve()
       }).catch(error => {
         // console.log('User info:', error)
@@ -63,10 +65,10 @@ const actions = {
           return reject('Verification failed, please Login again.')
         }
 
-        const { name, avatar } = data
-
-        commit('SET_NAME', name)
-        commit('SET_AVATAR', avatar)
+        commit('SET_NAME', data.data.name)
+        commit('SET_ID', data.data.userId)
+        commit('SET_ROLE', data.data.role)
+        commit('SET_AVATAR', data.data.avatar)
         resolve(data)
       }).catch(error => {
         reject(error)
@@ -78,10 +80,8 @@ const actions = {
   logout({ commit, state }) {
     return new Promise((resolve, reject) => {
       logout(state.token).then(() => {
+        console.log('before logout: ', state.token)
         removeToken() // must remove  token  first
-        removeName()
-        removeUserId()
-        resetRouter()
         commit('RESET_STATE')
         resolve()
       }).catch(error => {
