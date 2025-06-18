@@ -5,7 +5,12 @@ export function getUsers(params) {
   return request({
     url: '/api/admin/users',
     method: 'get',
-    params
+    params: {
+      search: params.search,
+      role: params.role,
+      page: params.page,
+      limit: params.limit
+    }
   })
 }
 

@@ -266,7 +266,12 @@ export default {
     async getUsers() {
       this.loading = true
       try {
-        const { data } = await getUsers(this.listQuery)
+        const { data } = await getUsers({
+          search: this.listQuery.search,
+          role: this.listQuery.role,
+          page: this.listQuery.page,
+          limit: this.listQuery.limit
+        })
         this.users = data.items
         this.total = data.total
       } catch (error) {
