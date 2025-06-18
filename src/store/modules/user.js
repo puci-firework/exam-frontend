@@ -92,11 +92,11 @@ const actions = {
 
   logout({ commit, state }) {
     return new Promise((resolve, reject) => {
-      // 从state中获取userId，或者从getters中获取
-      const userId = state.userId
+      // 从state中获取token，或者从getters中获取
+      const token = state.token
 
       // 调用API时传递userId
-      logout(userId).then(() => {
+      logout(token).then(() => {
         removeToken() // 必须先移除token
         removeUserId() // 移除userId
         removeName()

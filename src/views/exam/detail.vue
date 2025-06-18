@@ -7,7 +7,8 @@
           v-if="!isTeacher && !detail.hasTaken && isExamActive"
           style="float: right; padding: 3px 0"
           type="text"
-          @click="startExam">
+          @click="startExam"
+        >
           开始考试
         </el-button>
       </div>
@@ -25,7 +26,7 @@
         </div>
       </div>
 
-      <el-divider></el-divider>
+      <el-divider />
 
       <div class="question-list">
         <h3>题目列表</h3>
@@ -95,6 +96,25 @@ export default {
     formatDateTime,
 
     startExam() {
+      // 在开始考试前检查考试状态
+      const now = new Date()
+      const startTime = new Date(this.detail.startTime)
+      const endTime = new Date(this.detail.endTime)
+
+      if (now < startTime) {
+        this.$message.warning('考试尚未开始')
+        return
+      }
+
+      if (now > endTime) {
+        this.$message.warning('考试已结束')
+        return
+      }
+
+      if (this.detail.hasTaken) {
+        this.$message.warning('您已参加过本次考试')
+        return
+      }
       this.$router.push(`/exam/do/${this.$route.params.id}`)
     }
   }

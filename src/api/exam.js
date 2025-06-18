@@ -35,7 +35,10 @@ export function startExam(examId, studentId) {
   return request({
     url: `/api/exams/${examId}/start`,
     method: 'get',
-    params: { studentId }
+    params: { studentId },
+    validateStatus: function(status) {
+      return status < 500 // 确保捕获 400 等错误状态
+    }
   })
 }
 

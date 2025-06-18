@@ -346,7 +346,7 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(async () => {
+      }).then(async() => {
         try {
           await deleteUser(row.id)
           this.$message.success('删除成功')

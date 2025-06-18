@@ -115,28 +115,53 @@ export default {
   methods: {
     async initExam() {
       try {
-        const { data } = await startExam(
+        const response = await startExam(
           this.$route.params.id,
-          this.$route.query.studentId || this.$store.state.user.userId // 优先使用路由参数
+          this.$route.query.studentId || this.$store.state.user.userId
         )
 
-        this.exam = data
-        this.timeRemaining = data.remainingTime || 0
+        // 检查响应状态码
+        if (response.status !== 200) {
+          const errorMessage = response.data?.message || '考试初始化失败'
+          this.handleExamError(errorMessage)
+          return
+        }
+
+        this.exam = response.data
+        this.timeRemaining = response.data.remainingTime || 0
 
         // 初始化答案表单
-        this.form.answers = data.questions.map(q => ({
+        this.form.answers = response.data.questions.map(q => ({
           questionId: q.id,
           answer: q.type === 'MULTIPLE_CHOICE' ? [] : ''
         }))
       } catch (error) {
         console.error('初始化考试失败:', error)
-        this.$message.error('初始化考试失败: ' + (error.message || '未知错误'))
-        this.$router.go(-1)
+        this.handleExamError(error.response?.headers['x-error-message'] || error.message)
+      }
+    },
+
+    handleExamError(errorMessage) {
+      if (!errorMessage) {
+        errorMessage = '初始化考试失败，请稍后再试'
+      }
+
+      this.$message.error(errorMessage)
+
+      // 根据错误类型执行不同操作
+      if (errorMessage.includes('您已经参加过本次考试')) {
+        this.$router.push(`/exam/detail/${this.$route.params.id}`)
+      } else if (errorMessage.includes('尚未开始')) {
+        this.$router.push(`/exam/detail/${this.$route.params.id}`)
+      } else if (errorMessage.includes('已结束')) {
+        this.$router.push('/exam/list')
+      } else {
+        this.$router.go(-1) // 返回上一页
       }
     },
 
     startTimer() {
-      this.timer = setInterval(async () => {
+      this.timer = setInterval(async() => {
         if (this.timeRemaining <= 0) {
           clearInterval(this.timer)
           this.$message.warning('考试时间已结束，将自动提交')

@@ -145,6 +145,29 @@ export default {
       if (this.isTeacher) {
         this.$router.push(`/exam/review/${id}`)
       } else {
+        // 先检查考试状态
+        const exam = this.examList.find(e => e.id === id)
+
+        if (!exam) {
+          this.$message.error('考试不存在')
+          return
+        }
+
+        const now = new Date()
+        const startTime = new Date(exam.startTime)
+        const endTime = new Date(exam.endTime)
+
+        if (now < startTime) {
+          this.$message.warning('考试尚未开始')
+          return
+        }
+
+        if (now > endTime) {
+          this.$message.warning('考试已结束')
+          return
+        }
+
+        // 正常跳转到考试页面
         this.$router.push(`/exam/do/${id}`)
       }
     },
