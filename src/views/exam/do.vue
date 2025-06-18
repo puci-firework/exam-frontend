@@ -100,6 +100,7 @@ export default {
     }
   },
   created() {
+    console.log('调用startExam参数:', this.$store.state.user.role)
     if (this.$store.state.user.role !== 'STUDENT') {
       this.$message.error('只有学生可以参加考试')
       this.$router.push('/exam')
@@ -127,7 +128,6 @@ export default {
           questionId: q.id,
           answer: q.type === 'MULTIPLE_CHOICE' ? [] : ''
         }))
-
       } catch (error) {
         console.error('初始化考试失败:', error)
         this.$message.error('初始化考试失败: ' + (error.message || '未知错误'))

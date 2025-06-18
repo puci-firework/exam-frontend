@@ -2,14 +2,15 @@ import { login, logout, getInfo } from '@/api/user'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import { getUserId, setUserId, removeUserId } from '@/utils/auth'
 import { getName, setName, removeName } from '@/utils/auth'
+import { getRole, setRole, removeRole } from '@/utils/auth'
 import { resetRouter } from '@/router'
-import { set } from 'nprogress'
 
 const getDefaultState = () => {
   return {
     token: getToken(),
     userId: getUserId(),
     name: getName(),
+    role: getRole(),
     avatar: ''
   }
 }
@@ -21,11 +22,19 @@ const mutations = {
     Object.assign(state, getDefaultState())
   },
   SET_TOKEN: (state, token) => {
-    // console.log('Setting token:', token)
     state.token = token
+  },
+  // 添加 SET_USERID 和 SET_ROLE
+  SET_USERID: (state, userId) => {
+    state.userId = userId
   },
   SET_NAME: (state, name) => {
     state.name = name
+    setName(name)
+  },
+  SET_ROLE: (state, role) => {
+    state.role = role
+    setRole(role)
   },
   SET_AVATAR: (state, avatar) => {
     state.avatar = avatar
@@ -41,10 +50,17 @@ const actions = {
         const { data } = response
         console.log('Login response:', data.data.token)
         commit('SET_TOKEN', data.data.token)
+        // 确保用户ID是数字类型
+        const userId = Number(data.data.userId)
+        console.log('UserId', userId)
+        if (isNaN(userId)) {
+          throw new Error('无效的用户ID格式')
+        }
+        commit('SET_USERID', userId)
         commit('SET_NAME', data.data.username)
+        commit('SET_ROLE', data.data.role)
         setToken(data.data.token)
         setUserId(data.data.userId)
-        setName(data.data.username)
         resolve()
       }).catch(error => {
         // console.log('User info:', error)
@@ -84,6 +100,7 @@ const actions = {
         removeToken() // 必须先移除token
         removeUserId() // 移除userId
         removeName()
+        removeRole()
         resetRouter()
         commit('RESET_STATE')
         resolve()
@@ -92,6 +109,7 @@ const actions = {
         removeToken()
         removeUserId()
         removeName()
+        removeRole()
         resetRouter()
         commit('RESET_STATE')
         reject(error)

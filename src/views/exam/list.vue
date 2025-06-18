@@ -82,6 +82,7 @@ export default {
     }
   },
   created() {
+    console
     this.fetchExamList()
   },
   methods: {
