@@ -1,15 +1,47 @@
 <template>
   <div class="top-nav">
-    <div class="log">作业考试系统</div>
+    <div class="logo" @click="goToDashboard">作业考试系统</div>
 
-    <el-menu :active-text-color="variables.menuActiveText" :default-active="activeMenu" mode="horizontal" @select="handleSelect">
-      <div v-for="item in routes" :key="item.path" class="nav-item">
-        <app-link :to="resolvePath(item)">
-          <el-menu-item v-if="!item.hidden" :index="item.path">{{ item.meta ? item.meta.title : item.children[0].meta.title }}</el-menu-item>
-        </app-link>
-      </div>
+    <el-menu
+      :active-text-color="variables.menuActiveText"
+      :default-active="activeMenu"
+      mode="horizontal"
+      @select="handleSelect"
+    >
+
+      <!-- 首页菜单项 -->
+      <el-menu-item index="/dashboard" @click="goToDashboard">首页</el-menu-item>
+
+      <!-- 通用功能 -->
+      <!-- 动态显示考试菜单项 -->
+      <el-menu-item
+        index="/exam/list"
+        @click="goToExamList">
+        {{ isTeacher || isAdmin ? '我的考试' : '所有考试' }}
+      </el-menu-item>
+
+      <!-- 统一作业菜单项 -->
+      <el-menu-item
+        index="/homework/list"
+        @click="goToHomeworkList">
+        {{ isTeacher || isAdmin ? '我的作业' : '所有作业' }}
+      </el-menu-item>
+      <el-menu-item index="/score/list" @click="goToScoreList">成绩查询</el-menu-item>
+      <el-menu-item v-if="!isTeacher" index="/error-book/list" @click="goToErrorBook">错题本</el-menu-item>
+
+      <!-- 教师专属功能 -->
+      <el-submenu v-if="isTeacher" index="teacher-actions">
+        <template #title>教师操作</template>
+        <el-menu-item index="/exam/create" @click="goToCreateExam">创建考试</el-menu-item>
+        <el-menu-item index="/homework/create" @click="goToCreateHomework">布置作业</el-menu-item>
+        <el-menu-item index="/teacher/dashboard" @click="goToTeacherDashboard">教师中心</el-menu-item>
+      </el-submenu>
+
+      <!-- 管理员专属功能 -->
+      <el-menu-item v-if="isAdmin" index="/admin/users" @click="goToUserManagement">用户管理</el-menu-item>
     </el-menu>
 
+    <!-- 右侧用户头像下拉菜单 -->
     <div class="right-menu">
       <el-dropdown class="avatar-container" trigger="click">
         <div class="avatar-wrapper">
@@ -17,17 +49,11 @@
           <i class="el-icon-caret-bottom" />
         </div>
         <el-dropdown-menu slot="dropdown" class="user-dropdown">
-          <router-link to="/">
-            <el-dropdown-item>Home</el-dropdown-item>
+          <router-link to="/profile">
+            <el-dropdown-item>个人中心</el-dropdown-item>
           </router-link>
-          <a href="https://github.com/PanJiaChen/vue-admin-template/" target="_blank">
-            <el-dropdown-item>Github</el-dropdown-item>
-          </a>
-          <a href="https://panjiachen.github.io/vue-element-admin-site/#/" target="_blank">
-            <el-dropdown-item>Docs</el-dropdown-item>
-          </a>
           <el-dropdown-item divided @click.native="logout">
-            <span style="display:block;">Log Out</span>
+            <span style="display:block; color: #F56C6C;">退出登录</span>
           </el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
@@ -37,126 +63,186 @@
 
 <script>
 import variables from '@/styles/variables.scss'
-import { constantRoutes } from '@/router'
-import { isExternal } from '@/utils/validate'
-import AppLink from './Sidebar/Link'
 import { mapGetters } from 'vuex'
 
 export default {
-  components: {
-    AppLink
-  },
+  name: 'Topbar',
   data() {
     return {
-      routes: constantRoutes
+      variables: variables
     }
   },
   computed: {
-    ...mapGetters(['avatar']),
-    variables() {
-      return variables
+    ...mapGetters(['avatar', 'sidebar']),
+    isTeacher() {
+      return this.$store.state.user.role === 'TEACHER'
+    },
+    isAdmin() {
+      return this.$store.state.user.role === 'ADMIN'
     },
     activeMenu() {
       const route = this.$route
       const { meta, path } = route
-      // if set path, the sidebar will highlight the path you set
       if (meta.activeMenu) {
         return meta.activeMenu
       }
-      // 如果是首页，首页高亮
-      if (path === '/dashboard') {
-        return '/'
-      }
-      // 如果不是首页，高亮一级菜单
-      const activeMenu = '/' + path.split('/')[1]
-      return activeMenu
+      // 高亮一级菜单
+      return '/' + path.split('/')[1]
     }
   },
-  mounted() {
-    this.initCurrentRoutes()
-  },
   methods: {
-    handleSelect(key, keyPath) {
-      // 得到子级路由
-      const route = this.routes.find(item => item.path === key)
-      this.$store.commit('permission/SET_CURRENT_ROUTES', route)
-      // 把选中路由的子路由保存store
-      this.setSidebarHide(route)
+    // 导航方法
+    goToDashboard() {
+      this.$router.push('/dashboard').catch(err => {
+        console.error('导航失败:', err)
+      })
     },
-    resolvePath(item) {
-      // 如果是个完成的url直接返回
-      if (isExternal(item.path)) {
-        return item.path
-      }
-      // 如果是首页，就返回重定向路由
-      if (item.path === '/') {
-        const path = item.redirect
-        return path
-      }
-
-      // 如果有子项，默认跳转第一个子项路由
-      let path = ''
-      /**
-       * item 路由子项
-       * parent 路由父项
-       */
-      const getDefaultPath = (item, parent) => {
-        // 如果path是个外部链接（不建议），直接返回链接，存在个问题：如果是外部链接点击跳转后当前页内容还是上一个路由内容
-        if (isExternal(item.path)) {
-          path = item.path
-          return
-        }
-        // 第一次需要父项路由拼接，所以只是第一个传parent
-        if (parent) {
-          path += (parent.path + '/' + item.path)
-        } else {
-          path += ('/' + item.path)
-        }
-        // 如果还有子项，继续递归
-        if (item.children) {
-          getDefaultPath(item.children[0])
-        }
-      }
-
-      if (item.children) {
-        getDefaultPath(item.children[0], item)
-        return path
-      }
-
-      return item.path
+    goToTeacherDashboard() {
+      this.$router.push('/teacher/dashboard')
     },
-    initCurrentRoutes() {
-      const { path } = this.$route
-      let route = this.routes.find(
-        item => item.path === '/' + path.split('/')[1]
-      )
-      // 如果找不到这个路由，说明是首页
-      if (!route) {
-        route = this.routes.find(item => item.path === '/')
-      }
-      this.$store.commit('permission/SET_CURRENT_ROUTES', route)
-      this.setSidebarHide(route)
+    goToExamList() {
+      this.$router.push('/exam/list')
     },
-    setSidebarHide(route) {
-      if (!route.children || route.children.length === 1) {
-        this.$store.dispatch('app/toggleSideBarHide', true)
-      } else {
-        this.$store.dispatch('app/toggleSideBarHide', false)
-      }
+    goToHomeworkList() {
+      this.$router.push('/homework/list')
+    },
+    goToScoreList() {
+      this.$router.push('/score/list')
+    },
+    goToErrorBook() {
+      this.$router.push('/error-book/list')
+    },
+    goToCreateExam() {
+      this.$router.push('/teacher/exams')
+    },
+    goToCreateHomework() {
+      this.$router.push('/teacher/homeworks')
+    },
+    goToUserManagement() {
+      this.$router.push('/admin/users')
     },
     async logout() {
       try {
-        await this.$store.dispatch('user/logout', this.$store.getters.userId)
+        await this.$store.dispatch('user/logout')
         this.$router.push(`/login?redirect=${this.$route.fullPath}`)
       } catch (error) {
         console.error('登出失败:', error)
-        // 即使API调用失败也跳转到登录页
         this.$router.push('/login')
       }
+    },
+    handleSelect(key) {
+      // 可扩展的菜单选中逻辑
+      console.log('菜单选中:', key)
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+.top-nav {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  padding: 0 20px;
+  position: relative;
+  z-index: 100;
+
+  .logo {
+    font-size: 18px;
+    font-weight: bold;
+    margin-right: 30px;
+    color: #409EFF;
+    cursor: pointer;
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  .el-menu {
+    flex: 1;
+    border-bottom: none;
+    background: transparent;
+
+    &--horizontal {
+      display: flex;
+      align-items: center;
+    }
+
+    .el-menu-item, .el-submenu__title {
+      height: 50px;
+      line-height: 50px;
+      margin: 0 5px;
+      &:hover {
+        background-color: rgba(64, 158, 255, 0.1) !important;
+      }
+    }
+  }
+
+  .right-menu {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+
+    .avatar-container {
+      cursor: pointer;
+      padding: 0 10px;
+
+      .avatar-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        .user-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border: 1px solid #eee;
+          transition: all 0.3s;
+          &:hover {
+            transform: scale(1.1);
+          }
+        }
+
+        .el-icon-caret-bottom {
+          margin-left: 5px;
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+    }
+
+    .badge {
+      margin-left: 5px;
+      ::v-deep .el-badge__content {
+        top: 5px;
+      }
+    }
+  }
+
+  .user-dropdown {
+    .el-dropdown-menu__item {
+      line-height: 36px;
+      padding: 0 20px;
+      &:hover {
+        background-color: #f5f7fa;
+      }
+    }
+  }
+}
+
+@media (max-width: 992px) {
+  .top-nav {
+    padding: 0 10px;
+    .logo {
+      margin-right: 15px;
+      font-size: 16px;
+    }
+    .el-menu-item {
+      padding: 0 8px !important;
+      font-size: 13px;
+    }
+  }
+}
 </style>

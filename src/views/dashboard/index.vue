@@ -15,70 +15,6 @@
       </el-col>
     </el-row>
 
-    <!-- 快速操作按钮区 -->
-    <el-row :gutter="20" class="mb-4">
-      <el-col :span="24">
-        <el-card shadow="hover" class="quick-actions">
-          <el-button-group>
-            <el-button type="primary" icon="el-icon-date" @click="goToExamList">
-              查看所有考试
-            </el-button>
-            <el-button type="success" icon="el-icon-notebook-2" @click="goToHomeworkList">
-              查看所有作业
-            </el-button>
-            <el-button
-              type="info"
-              icon="el-icon-data-line"
-              @click="goToScoreList"
-            >
-              查看成绩
-            </el-button>
-            <el-button
-              v-if="!isTeacher"
-              type="warning"
-              icon="el-icon-collection"
-              @click="goToErrorBook"
-            >
-              错题本
-            </el-button>
-            <!-- 教师专属 -->
-            <template v-if="isTeacher">
-              <el-button
-                type="warning"
-                icon="el-icon-edit"
-                @click="goToCreateExam"
-              >
-                创建新考试
-              </el-button>
-              <el-button
-                type="info"
-                icon="el-icon-edit-outline"
-                @click="goToCreateHomework"
-              >
-                布置新作业
-              </el-button>
-              <el-button
-                type="danger"
-                icon="el-icon-check"
-                @click="goToPendingReviews"
-              >
-                待批改作业 ({{ pendingReviewsCount }})
-              </el-button>
-            </template>
-            <!-- 管理员专属 -->
-            <el-button
-              v-if="isAdmin"
-              type="danger"
-              icon="el-icon-s-tools"
-              @click="goToUserManagement"
-            >
-              用户管理
-            </el-button>
-          </el-button-group>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 主要内容区 -->
     <el-row :gutter="20">
       <!-- 近期考试 -->
@@ -114,7 +50,7 @@
                     :disabled="row.status !== 2"
                     @click.stop="handleStartExam(row.id)"
                   >
-                    {{ isTeacher ? '批改' : '开始' }}
+                    {{ isTeacher ? '' : '开始' }}
                   </el-button>
                 </el-button-group>
               </template>
@@ -155,7 +91,7 @@
                     :disabled="isTeacher"
                     @click.stop="handleDoHomework(row.id)"
                   >
-                    完成作业
+                    {{ isTeacher ? '' : '完成作业' }}
                   </el-button>
                 </el-button-group>
               </template>
@@ -300,11 +236,6 @@ export default {
         console.error('获取错题数量失败:', error)
       }
     },
-
-    // 新增：跳转到错题本
-    goToErrorBook() {
-      this.$router.push('/error-book/list')
-    },
     // 加载首页数据
     async loadHomeData() {
       try {
@@ -358,7 +289,7 @@ export default {
         if (this.scoreData.length > 0) {
           const avg = this.scoreData.reduce((sum, item) => sum + item.percentage, 0) /
             this.scoreData.length
-          this.statCards[2].value = avg.toFixed(1)
+          this.statCards[3].value = avg.toFixed(1)
         }
       } catch (error) {
         console.error('加载成绩数据失败:', error)
@@ -450,27 +381,6 @@ export default {
       this.loading = { exams: false, homeworks: false, scores: false }
     },
 
-    // 导航方法
-    goToExamList() {
-      this.$router.push('/exam/list')
-    },
-
-    goToHomeworkList() {
-      this.$router.push('/homework/list')
-    },
-
-    goToScoreList() {
-      this.$router.push('/score/list')
-    },
-
-    goToCreateExam() {
-      this.$router.push('/exam/create')
-    },
-
-    goToCreateHomework() {
-      this.$router.push('/homework/create')
-    },
-
     handleViewExam(id) {
       if (!id) {
         this.$message.error('无效的考试ID')
@@ -515,10 +425,6 @@ export default {
 
     handleScoreTabChange() {
       this.loadScoreData()
-    },
-
-    goToUserManagement() {
-      this.$router.push('/admin/users')
     }
   }
 }

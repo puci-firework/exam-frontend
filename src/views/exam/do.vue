@@ -8,8 +8,9 @@
           <el-button
             size="mini"
             type="primary"
+            :loading="submitting"
             @click="submitExam"
-            :loading="submitting">
+          >
             提交试卷
           </el-button>
         </div>
@@ -18,55 +19,64 @@
       <el-form
         ref="form"
         :model="form"
-        label-position="top">
+        label-position="top"
+      >
         <div
           v-for="(q, index) in exam.questions"
           :key="q.id"
-          class="question-item">
+          class="question-item"
+        >
           <el-form-item
             :label="`${index + 1}. ${q.content} (${q.score}分)`"
             :prop="`answers.${index}.answer`"
-            :rules="getValidationRules(q.type)">
+            :rules="getValidationRules(q.type)"
+          >
             <!-- 单选题 -->
             <el-radio-group
-              v-if="q.type === 'SINGLE_CHOICE'"
-              v-model="form.answers[index].answer">
+              v-if="q.type === 'single'"
+              v-model="form.answers[index].answer"
+            >
               <el-radio
                 v-for="(option, optIndex) in parseOptions(q.options)"
                 :key="optIndex"
-                :label="option">
+                :label="optIndex.toString()"
+              >
                 {{ option }}
               </el-radio>
             </el-radio-group>
 
             <!-- 多选题 -->
             <el-checkbox-group
-              v-else-if="q.type === 'MULTIPLE_CHOICE'"
-              v-model="form.answers[index].answer">
+              v-else-if="q.type === 'multiple'"
+              v-model="form.answers[index].selectedValues"
+              @change="updateMultipleAnswer(index)"
+            >
               <el-checkbox
                 v-for="(option, optIndex) in parseOptions(q.options)"
                 :key="optIndex"
-                :label="option">
+                :label="optIndex"
+              >
                 {{ option }}
               </el-checkbox>
             </el-checkbox-group>
 
             <!-- 判断题 -->
             <el-radio-group
-              v-else-if="q.type === 'TRUE_FALSE'"
-              v-model="form.answers[index].answer">
-              <el-radio label="正确">正确</el-radio>
-              <el-radio label="错误">错误</el-radio>
+              v-else-if="q.type === 'judge'"
+              v-model="form.answers[index].answer"
+            >
+              <el-radio label="true">正确</el-radio>
+              <el-radio label="false">错误</el-radio>
             </el-radio-group>
 
-            <!-- 简答题/编程题 -->
+            <!-- 简答题 -->
             <el-input
-              v-else
+              v-else-if="q.type === 'short'"
+              v-model.trim="form.answers[index].answer"
               type="textarea"
-              :rows="q.type === 'SHORT_ANSWER' ? 3 : 6"
-              v-model="form.answers[index].answer"
-              :placeholder="getPlaceholder(q.type)">
-            </el-input>
+              :rows="3"
+              placeholder="请输入答案"
+            />
           </el-form-item>
         </div>
       </el-form>
@@ -84,12 +94,13 @@ export default {
     return {
       exam: {
         title: '',
+        subject: '',
         questions: []
       },
       form: {
         answers: []
       },
-      timeRemaining: 0, // 剩余秒数
+      timeRemaining: 0,
       timer: null,
       submitting: false
     }
@@ -100,7 +111,6 @@ export default {
     }
   },
   created() {
-    console.log('调用startExam参数:', this.$store.state.user.role)
     if (this.$store.state.user.role !== 'STUDENT') {
       this.$message.error('只有学生可以参加考试')
       this.$router.push('/exam')
@@ -113,14 +123,21 @@ export default {
     clearInterval(this.timer)
   },
   methods: {
+    parseOptions(options) {
+      try {
+        return JSON.parse(options)
+      } catch (e) {
+        return []
+      }
+    },
+
     async initExam() {
       try {
         const response = await startExam(
           this.$route.params.id,
-          this.$route.query.studentId || this.$store.state.user.userId
+          this.$store.state.user.userId
         )
 
-        // 检查响应状态码
         if (response.status !== 200) {
           const errorMessage = response.data?.message || '考试初始化失败'
           this.handleExamError(errorMessage)
@@ -130,25 +147,30 @@ export default {
         this.exam = response.data
         this.timeRemaining = response.data.remainingTime || 0
 
-        // 初始化答案表单
-        this.form.answers = response.data.questions.map(q => ({
-          questionId: q.id,
-          answer: q.type === 'MULTIPLE_CHOICE' ? [] : ''
-        }))
+        this.form.answers = response.data.questions.map(question => {
+          const answerObj = {
+            questionId: question.id,
+            type: question.type,
+            answer: ''
+          }
+
+          // 特殊处理多选题
+          if (question.type === 'multiple') {
+            answerObj.selectedValues = []
+          }
+
+          return answerObj
+        })
       } catch (error) {
-        console.error('初始化考试失败:', error)
-        this.handleExamError(error.response?.headers['x-error-message'] || error.message)
+        this.handleExamError(error.response?.data?.message || error.message)
       }
     },
 
     handleExamError(errorMessage) {
-      if (!errorMessage) {
-        errorMessage = '初始化考试失败，请稍后再试'
-      }
+      if (!errorMessage) errorMessage = '初始化考试失败，请稍后再试'
 
       this.$message.error(errorMessage)
 
-      // 根据错误类型执行不同操作
       if (errorMessage.includes('您已经参加过本次考试')) {
         this.$router.push(`/exam/detail/${this.$route.params.id}`)
       } else if (errorMessage.includes('尚未开始')) {
@@ -156,25 +178,87 @@ export default {
       } else if (errorMessage.includes('已结束')) {
         this.$router.push('/exam/list')
       } else {
-        this.$router.go(-1) // 返回上一页
+        this.$router.go(-1)
+      }
+    },
+
+    updateMultipleAnswer(index) {
+      const stringIndices = this.form.answers[index].selectedValues.map(num => num.toString())
+      this.form.answers[index].answer = JSON.stringify(stringIndices)
+    },
+
+    getValidationRules(type) {
+      const required = {
+        required: true,
+        message: '请完成此题',
+        trigger: 'blur'
+      }
+
+      if (type === 'multiple') {
+        return {
+          validator: (rule, value, callback) => {
+            const answer = this.form.answers[rule.field.split('.')[1]]
+            if (!answer.selectedValues || answer.selectedValues.length === 0) {
+              callback(new Error('请至少选择一个选项'))
+            } else {
+              callback()
+            }
+          },
+          trigger: 'change'
+        }
+      }
+
+      return required
+    },
+
+    async submitExam() {
+      try {
+        this.submitting = true
+        const valid = await this.$refs.form.validate()
+        if (!valid) return
+
+        // 构建符合后端要求的提交数据
+        const submitData = this.form.answers.map(item => ({
+          questionId: item.questionId,
+          answer: item.answer
+        }))
+
+        // 调试输出
+        console.log('提交数据:', JSON.stringify(submitData, null, 2))
+
+        await submitExam(
+          this.$route.params.id,
+          this.$store.state.user.userId,
+          submitData
+        )
+
+        this.$message.success('考试提交成功')
+        this.$router.push('/exam')
+      } catch (error) {
+        console.error('提交考试失败:', error)
+
+        if (error.response) {
+          if (error.response.status === 400) {
+            this.$message.error(error.response.data.message || '考试已结束，无法提交')
+          } else {
+            this.$message.error(`提交失败: ${error.response.data.message || '服务器错误'}`)
+          }
+        } else {
+          this.$message.error('提交考试失败: ' + (error.message || '未知错误'))
+        }
+      } finally {
+        this.submitting = false
       }
     },
 
     startTimer() {
-      this.timer = setInterval(async() => {
+      this.timer = setInterval(() => {
         if (this.timeRemaining <= 0) {
           clearInterval(this.timer)
-          this.$message.warning('考试时间已结束，将自动提交')
-          await this.submitExam()
+          this.$message.warning('考试时间已结束，请立即提交试卷')
           return
         }
-
         this.timeRemaining--
-
-        // 每分钟同步一次服务器时间
-        if (this.timeRemaining % 60 === 0) {
-          this.syncServerTime()
-        }
       }, 1000)
     },
 
@@ -187,63 +271,6 @@ export default {
         this.timeRemaining = data
       } catch (error) {
         console.error('同步考试时间失败:', error)
-      }
-    },
-
-    parseOptions(options) {
-      try {
-        return JSON.parse(options)
-      } catch {
-        return options.split(',')
-      }
-    },
-
-    getValidationRules(type) {
-      const required = { required: true, message: '请完成此题', trigger: 'blur' }
-
-      if (type === 'MULTIPLE_CHOICE') {
-        return {
-          type: 'array',
-          min: 1,
-          message: '请至少选择一个选项',
-          trigger: 'change'
-        }
-      }
-
-      return required
-    },
-
-    getPlaceholder(type) {
-      const map = {
-        'SHORT_ANSWER': '请输入简要答案',
-        'PROGRAMMING': '请输入代码实现',
-        'ESSAY': '请输入详细解答'
-      }
-      return map[type] || '请输入答案'
-    },
-
-    async submitExam() {
-      try {
-        this.submitting = true
-        await this.$refs.form.validate()
-
-        await submitExam(
-          this.$route.params.id,
-          this.$store.state.user.userId,
-          this.form.answers
-        )
-
-        this.$message.success('考试提交成功')
-        this.$router.push('/exam')
-      } catch (error) {
-        console.error('提交考试失败:', error)
-        if (error.response && error.response.status === 400) {
-          this.$message.error('考试已结束，无法提交')
-        } else {
-          this.$message.error('提交考试失败: ' + (error.message || '未知错误'))
-        }
-      } finally {
-        this.submitting = false
       }
     }
   }

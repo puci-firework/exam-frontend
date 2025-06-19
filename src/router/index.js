@@ -188,56 +188,44 @@ export const asyncRoutes = [
       }
     ]
   },
-  // // 教师
-  // {
-  //   path: '/teacher',
-  //   component: Layout,
-  //   redirect: '/teacher/exams',
-  //   name: 'Teacher',
-  //   meta: {
-  //     title: '教师管理',
-  //     icon: 'el-icon-s-custom',
-  //     roles: ['TEACHER', 'ADMIN']
-  //   },
-  //   children: [
-  //     {
-  //       path: 'exam/create',
-  //       name: 'ExamCreate',
-  //       component: () => import('@/views/teacher/exam/Create.vue'),
-  //       meta: {
-  //         title: '创建考试'
-  //       }
-  //     },
-  //     {
-  //       path: 'homework/create',
-  //       name: 'HomeworkCreate',
-  //       component: () => import('@/views/teacher/HomeworkCreate'),
-  //       meta: {
-  //         title: '布置作业'
-  //       }
-  //     },
-  //     {
-  //       path: 'exam/results/:id',
-  //       name: 'ExamResults',
-  //       component: () => import('@/views/teacher/ExamResults'),
-  //       meta: {
-  //         title: '考试结果',
-  //         activeMenu: '/exam/list'
-  //       },
-  //       hidden: true
-  //     },
-  //     {
-  //       path: 'homework/grade/:id',
-  //       name: 'HomeworkGrade',
-  //       component: () => import('@/views/teacher/HomeworkGrade'),
-  //       meta: {
-  //         title: '批改作业',
-  //         activeMenu: '/homework/list'
-  //       },
-  //       hidden: true
-  //     }
-  //   ]
-  // },
+  // 教师
+  {
+    path: '/teacher',
+    component: Layout,
+    meta: { roles: ['TEACHER'] },
+    children: [
+      {
+        path: 'dashboard',
+        component: () => import('@/views/teacher/TeacherDashboard'),
+        name: 'TeacherDashboard',
+        meta: { title: '教师主页' }
+      },
+      {
+        path: 'exams/:examId/results',
+        component: () => import('@/views/teacher/ExamResults'),
+        name: 'ExamResults',
+        meta: { title: '考试结果' }
+      },
+      {
+        path: 'homeworks/:homeworkId/results',
+        component: () => import('@/views/teacher/HomeworkResults'),
+        name: 'HomeworkResults',
+        meta: { title: '作业结果' }
+      },
+      {
+        path: 'exams',
+        component: () => import('@/views/teacher/ExamForm.vue'),
+        name: 'CreateExam',
+        meta: { title: '创建考试' }
+      },
+      {
+        path: 'homeworks',
+        component: () => import('@/views/teacher/HomeworkForm.vue'),
+        name: 'CreateHomework',
+        meta: { title: '创建作业' }
+      }
+    ]
+  },
   // 管理员
   {
     path: '/admin',
@@ -258,6 +246,20 @@ export const asyncRoutes = [
           title: '用户管理',
           icon: 'el-icon-user'
         }
+      }
+    ]
+  },
+  // profile
+  {
+    path: '/profile',
+    component: Layout,
+    hidden: true,
+    children: [
+      {
+        path: '',
+        name: 'Profile',
+        component: () => import('@/views/profile/index'),
+        meta: { title: '个人中心' }
       }
     ]
   },
