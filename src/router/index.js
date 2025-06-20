@@ -12,11 +12,6 @@ export const constantRoutes = [
     hidden: true
   },
   {
-    path: '/404',
-    component: () => import('@/views/404'),
-    hidden: true
-  },
-  {
     path: '/',
     component: Layout,
     redirect: '/dashboard',
@@ -30,6 +25,17 @@ export const constantRoutes = [
         affix: true // 固定标签页
       }
     }]
+  },
+  // 注册
+  {
+    path: '/register',
+    component: () => import('@/views/register/index'),
+    hidden: true
+  },
+  {
+    path: '/404',
+    component: () => import('@/views/404'),
+    hidden: true
   }
 ]
 

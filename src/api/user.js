@@ -25,3 +25,11 @@ export function logout(token) {
     params: { token }
   })
 }
+
+export function register(data) {
+  return request({
+    url: '/api/auth/register',
+    method: 'post',
+    data
+  })
+}
