@@ -65,7 +65,7 @@
       </el-form-item>
 
       <el-form-item label="分值" :rules="{ required: true, message: '请设置分值', trigger: 'blur' }">
-        <el-input-number v-model="q.score" :min="1" :max="20"></el-input-number>
+        <el-input-number v-model="q.score" :min="1" :max="100"></el-input-number>
       </el-form-item>
 
       <el-button size="mini" type="danger" @click="removeQuestion(index)">删除题目</el-button>
