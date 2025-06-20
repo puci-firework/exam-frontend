@@ -55,19 +55,25 @@ export default {
     updateChart() {
       if (!this.chart) return
 
+      // 定义正确的分数段顺序
+      const scoreRanges = ['0-59', '60-69', '70-79', '80-89', '90-100']
+
+      // 按照定义的顺序获取数据
+      const sortedData = scoreRanges.map(range => this.data[range] || 0)
+
       const option = {
         tooltip: {
           trigger: 'item'
         },
         xAxis: {
           type: 'category',
-          data: Object.keys(this.data)
+          data: scoreRanges
         },
         yAxis: {
           type: 'value'
         },
         series: [{
-          data: Object.values(this.data),
+          data: sortedData,
           type: 'bar',
           showBackground: true,
           itemStyle: {
@@ -78,7 +84,6 @@ export default {
 
       this.chart.setOption(option)
     },
-
     handleResize: debounce(function() {
       if (this.chart) {
         this.chart.resize()
