@@ -83,7 +83,7 @@ export default {
           teacherId: this.$store.state.user.userId,
           questions: this.homework.questions.map(q => ({
             content: q.content,
-            type: q.type || 'SINGLE_CHOICE',
+            type: q.type || 'single',
             options: Array.isArray(q.options) ? JSON.stringify(q.options) : q.options,
             answer: Array.isArray(q.answer) ? JSON.stringify(q.answer) : q.answer,
             score: q.score || 0,
