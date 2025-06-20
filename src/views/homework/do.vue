@@ -145,12 +145,20 @@ export default {
           const answerObj = {
             questionId: question.id,
             type: question.type,
-            answer: ''
+            answer: question.draftAnswer || '' // 使用草稿答案或空字符串
           }
 
           // 特殊处理多选题
           if (question.type === 'multiple') {
             answerObj.selectedValues = []
+            // 如果存在草稿答案，解析为数组
+            if (question.draftAnswer) {
+              try {
+                answerObj.selectedValues = JSON.parse(question.draftAnswer).map(Number)
+              } catch (e) {
+                console.error('多选题草稿解析失败:', e)
+              }
+            }
           }
 
           return answerObj
