@@ -50,7 +50,7 @@
                 type="primary"
                 @click.stop="handleStartHomework(row.id)"
                 :disabled="row.status !== 'pending'">
-                {{ isTeacher ? '批改' : '开始' }}
+                {{ isTeacher ? '' : '开始' }}
               </el-button>
             </el-button-group>
           </template>
@@ -152,7 +152,7 @@ export default {
     },
 
     createHomework() {
-      this.$router.push('/homework/create')
+      this.$router.push('/teacher/homeworks')
     }
   }
 }

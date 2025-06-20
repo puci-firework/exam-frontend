@@ -3,79 +3,87 @@
     <el-card shadow="hover">
       <div slot="header" class="clearfix">
         <span>{{ homework.title }}</span>
-        <el-button-group style="float: right">
-          <el-button
-            size="mini"
-            @click="saveDraft"
-            :loading="savingDraft">
-            保存草稿
-          </el-button>
-          <el-button
-            size="mini"
-            type="primary"
-            @click="submitHomework"
-            :loading="submitting">
-            提交作业
-          </el-button>
-        </el-button-group>
-      </div>
-
-      <div class="time-remaining" v-if="timeRemaining">
-        剩余时间: {{ timeRemaining }}
+        <div style="float: right">
+          <span class="time-remaining">剩余时间: {{ formattedTime }}</span>
+          <el-button-group>
+            <el-button
+              size="mini"
+              @click="saveDraft"
+              :loading="savingDraft">
+              保存草稿
+            </el-button>
+            <el-button
+              size="mini"
+              type="primary"
+              @click="submitHomework"
+              :loading="submitting">
+              提交作业
+            </el-button>
+          </el-button-group>
+        </div>
       </div>
 
       <el-form
         ref="form"
         :model="form"
-        label-position="top">
+        label-position="top"
+      >
         <div
           v-for="(q, index) in homework.questions"
           :key="q.id"
-          class="question-item">
+          class="question-item"
+        >
           <el-form-item
             :label="`${index + 1}. ${q.content} (${q.score}分)`"
             :prop="`answers.${index}.answer`"
-            :rules="getValidationRules(q.type)">
+            :rules="getValidationRules(q.type)"
+          >
             <!-- 单选题 -->
             <el-radio-group
-              v-if="q.type === 'SINGLE_CHOICE'"
-              v-model="form.answers[index].answer">
+              v-if="q.type === 'single'"
+              v-model="form.answers[index].answer"
+            >
               <el-radio
                 v-for="(option, optIndex) in parseOptions(q.options)"
                 :key="optIndex"
-                :label="option">
+                :label="optIndex.toString()"
+              >
                 {{ option }}
               </el-radio>
             </el-radio-group>
 
             <!-- 多选题 -->
             <el-checkbox-group
-              v-else-if="q.type === 'MULTIPLE_CHOICE'"
-              v-model="form.answers[index].answer">
+              v-else-if="q.type === 'multiple'"
+              v-model="form.answers[index].selectedValues"
+              @change="updateMultipleAnswer(index)"
+            >
               <el-checkbox
                 v-for="(option, optIndex) in parseOptions(q.options)"
                 :key="optIndex"
-                :label="option">
+                :label="optIndex"
+              >
                 {{ option }}
               </el-checkbox>
             </el-checkbox-group>
 
             <!-- 判断题 -->
             <el-radio-group
-              v-else-if="q.type === 'TRUE_FALSE'"
-              v-model="form.answers[index].answer">
-              <el-radio label="正确">正确</el-radio>
-              <el-radio label="错误">错误</el-radio>
+              v-else-if="q.type === 'judge'"
+              v-model="form.answers[index].answer"
+            >
+              <el-radio label="true">正确</el-radio>
+              <el-radio label="false">错误</el-radio>
             </el-radio-group>
 
-            <!-- 简答题/编程题 -->
+            <!-- 简答题 -->
             <el-input
-              v-else
+              v-else-if="q.type === 'short'"
+              v-model.trim="form.answers[index].answer"
               type="textarea"
-              :rows="q.type === 'SHORT_ANSWER' ? 3 : 6"
-              v-model="form.answers[index].answer"
-              :placeholder="getPlaceholder(q.type)">
-            </el-input>
+              :rows="3"
+              placeholder="请输入答案"
+            />
           </el-form-item>
         </div>
       </el-form>
@@ -85,7 +93,7 @@
 
 <script>
 import { startHomework, submitHomework, saveHomeworkDraft } from '@/api/homework'
-import { formatDateTime } from '@/utils/date'
+import { formatTime } from '@/utils/date'
 
 export default {
   name: 'DoHomework',
@@ -98,15 +106,20 @@ export default {
       form: {
         answers: []
       },
-      timeRemaining: '',
+      timeRemaining: 0,
       timer: null,
-      deadline: null,
       submitting: false,
       savingDraft: false
     }
   },
+  computed: {
+    formattedTime() {
+      return formatTime(this.timeRemaining)
+    }
+  },
   created() {
     this.initHomework()
+    this.startTimer()
   },
   beforeDestroy() {
     clearInterval(this.timer)
@@ -114,69 +127,76 @@ export default {
   methods: {
     async initHomework() {
       try {
-        const { data } = await startHomework(
+        const response = await startHomework(
           this.$route.params.id,
           this.$store.state.user.userId
         )
 
-        this.homework = data
-        this.deadline = new Date(data.deadline)
+        if (response.status !== 200) {
+          const errorMessage = response.data?.message || '作业初始化失败'
+          this.handleHomeworkError(errorMessage)
+          return
+        }
 
-        // 初始化答案表单
-        this.form.answers = data.questions.map(q => ({
-          questionId: q.id,
-          answer: ''
-        }))
+        this.homework = response.data
+        this.timeRemaining = response.data.remainingTime || 0
 
-        // 启动倒计时
-        this.startTimer()
+        this.form.answers = response.data.questions.map(question => {
+          const answerObj = {
+            questionId: question.id,
+            type: question.type,
+            answer: ''
+          }
+
+          // 特殊处理多选题
+          if (question.type === 'multiple') {
+            answerObj.selectedValues = []
+          }
+
+          return answerObj
+        })
       } catch (error) {
-        console.error('初始化作业失败:', error)
-        this.$message.error('初始化作业失败')
-        this.$router.go(-1)
+        this.handleHomeworkError(error.response?.data?.message || error.message)
       }
     },
 
-    startTimer() {
-      this.updateTimeRemaining()
-      this.timer = setInterval(() => {
-        this.updateTimeRemaining()
-      }, 1000)
-    },
+    handleHomeworkError(errorMessage) {
+      if (!errorMessage) errorMessage = '初始化作业失败，请稍后再试'
 
-    updateTimeRemaining() {
-      const now = new Date()
-      const diff = this.deadline - now
-
-      if (diff <= 0) {
-        clearInterval(this.timer)
-        this.timeRemaining = '已截止'
-        return
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60))
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-      this.timeRemaining = `${hours}小时 ${minutes}分钟 ${seconds}秒`
+      this.$message.error(errorMessage)
+      this.$router.go(-1)
     },
 
     parseOptions(options) {
       try {
         return JSON.parse(options)
-      } catch {
-        return options.split(',')
+      } catch (e) {
+        return []
       }
     },
 
-    getValidationRules(type) {
-      const required = { required: true, message: '请完成此题', trigger: 'blur' }
+    updateMultipleAnswer(index) {
+      const stringIndices = this.form.answers[index].selectedValues.map(num => num.toString())
+      this.form.answers[index].answer = JSON.stringify(stringIndices)
+    },
 
-      if (type === 'MULTIPLE_CHOICE') {
+    getValidationRules(type) {
+      const required = {
+        required: true,
+        message: '请完成此题',
+        trigger: 'blur'
+      }
+
+      if (type === 'multiple') {
         return {
-          type: 'array',
-          min: 1,
-          message: '请至少选择一个选项',
+          validator: (rule, value, callback) => {
+            const answer = this.form.answers[rule.field.split('.')[1]]
+            if (!answer.selectedValues || answer.selectedValues.length === 0) {
+              callback(new Error('请至少选择一个选项'))
+            } else {
+              callback()
+            }
+          },
           trigger: 'change'
         }
       }
@@ -184,34 +204,48 @@ export default {
       return required
     },
 
-    getPlaceholder(type) {
-      const map = {
-        'SHORT_ANSWER': '请输入简要答案',
-        'PROGRAMMING': '请输入代码实现',
-        'ESSAY': '请输入详细解答'
-      }
-      return map[type] || '请输入答案'
+    startTimer() {
+      this.timer = setInterval(() => {
+        if (this.timeRemaining <= 0) {
+          clearInterval(this.timer)
+          this.$message.warning('作业时间已结束，请立即提交')
+          return
+        }
+        this.timeRemaining--
+      }, 1000)
     },
 
     async submitHomework() {
       try {
         this.submitting = true
-        await this.$refs.form.validate()
+        const valid = await this.$refs.form.validate()
+        if (!valid) return
+
+        // 构建符合后端要求的提交数据
+        const submitData = this.form.answers.map(item => ({
+          questionId: item.questionId,
+          answer: item.answer
+        }))
 
         await submitHomework(
           this.$route.params.id,
           this.$store.state.user.userId,
-          this.form.answers
+          submitData
         )
 
         this.$message.success('作业提交成功')
         this.$router.push('/homework')
       } catch (error) {
         console.error('提交作业失败:', error)
-        if (error.response && error.response.status === 400) {
-          this.$message.error('作业已截止，无法提交')
+
+        if (error.response) {
+          if (error.response.status === 400) {
+            this.$message.error(error.response.data.message || '作业已截止，无法提交')
+          } else {
+            this.$message.error(`提交失败: ${error.response.data.message || '服务器错误'}`)
+          }
         } else {
-          this.$message.error('提交作业失败')
+          this.$message.error('提交作业失败: ' + (error.message || '未知错误'))
         }
       } finally {
         this.submitting = false
@@ -222,16 +256,22 @@ export default {
       try {
         this.savingDraft = true
 
+        // 构建草稿数据
+        const draftData = this.form.answers.map(item => ({
+          questionId: item.questionId,
+          answer: item.answer
+        }))
+
         await saveHomeworkDraft(
           this.$route.params.id,
           this.$store.state.user.userId,
-          this.form.answers
+          draftData
         )
 
         this.$message.success('草稿保存成功')
       } catch (error) {
         console.error('保存草稿失败:', error)
-        this.$message.error('保存草稿失败')
+        this.$message.error('保存草稿失败: ' + (error.message || '未知错误'))
       } finally {
         this.savingDraft = false
       }
@@ -246,13 +286,9 @@ export default {
 }
 
 .time-remaining {
-  margin-bottom: 20px;
-  padding: 10px;
-  background-color: #f4f4f5;
-  border-radius: 4px;
-  text-align: center;
-  font-weight: bold;
+  margin-right: 20px;
   color: #f56c6c;
+  font-weight: bold;
 }
 
 .question-item {

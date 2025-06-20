@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import store from '@/store'
 
 export function login(data) {
   return request({
@@ -8,7 +9,8 @@ export function login(data) {
   })
 }
 
-export function getInfo(token) {
+export function getInfo() {
+  const token = store.getters.token
   return request({
     url: '/api/auth/info',
     method: 'get',

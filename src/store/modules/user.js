@@ -58,6 +58,7 @@ const actions = {
         }
         commit('SET_USERID', userId)
         commit('SET_NAME', data.data.username)
+        commit('SET_AVATAR', data.avatarUrl || '/avatars/default_avatar.png')
         commit('SET_ROLE', data.data.role)
         setToken(data.data.token)
         setUserId(data.data.userId)

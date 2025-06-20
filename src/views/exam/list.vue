@@ -51,7 +51,7 @@
                 type="primary"
                 @click.stop="handleStartExam(row.id)"
                 :disabled="!canStartExam(row)">
-                {{ isTeacher ? '批改' : '开始' }}
+                {{ isTeacher ? '' : '开始' }}
               </el-button>
             </el-button-group>
           </template>
@@ -173,7 +173,7 @@ export default {
     },
 
     createExam() {
-      this.$router.push('/exam/create')
+      this.$router.push('/teacher/exams')
     }
   }
 }

@@ -37,16 +37,16 @@
         <div v-for="(answer, index) in scoreDetail.answers" :key="index" class="answer-item">
           <div class="question">
             <span class="question-index">{{ index + 1 }}.</span>
-            <span>{{ answer.questionContent }}</span>
+            <span>{{ answer.question.content }}</span>
             <span class="question-score">({{ answer.score }}分)</span>
           </div>
           <div class="student-answer">
             <el-tag size="small">学生答案</el-tag>
-            <span>{{ answer.studentAnswer || '未作答' }}</span>
+            <span>{{ answer.answer || '未作答' }}</span>
           </div>
           <div class="correct-answer">
             <el-tag size="small" type="success">正确答案</el-tag>
-            <span>{{ answer.correctAnswer }}</span>
+            <span>{{ answer.question.answer }}</span>
           </div>
         </div>
       </div>
@@ -74,7 +74,7 @@ export default {
   },
   computed: {
     userId() {
-      return this.$store.state.user.userId
+      return this.$route.query.studentId || this.$store.state.user.userId
     },
     examId() {
       return this.$route.params.id
@@ -82,6 +82,15 @@ export default {
   },
   created() {
     this.fetchScoreDetail()
+  },
+  watch: {
+    // 监听路由变化重新获取数据
+    '$route': {
+      immediate: true,
+      handler() {
+        this.fetchScoreDetail()
+      }
+    }
   },
   methods: {
     async fetchScoreDetail() {

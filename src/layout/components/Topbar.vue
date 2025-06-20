@@ -45,7 +45,7 @@
     <div class="right-menu">
       <el-dropdown class="avatar-container" trigger="click">
         <div class="avatar-wrapper">
-          <img :src="avatar+'?imageView2/1/w/80/h/80'" class="user-avatar">
+          <img :src="getFullAvatarUrl(avatar)+'?t='+timestamp" class="user-avatar">
           <i class="el-icon-caret-bottom" />
         </div>
         <el-dropdown-menu slot="dropdown" class="user-dropdown">
@@ -69,7 +69,8 @@ export default {
   name: 'Topbar',
   data() {
     return {
-      variables: variables
+      variables: variables,
+      timestamp: Date.now()
     }
   },
   computed: {
@@ -90,7 +91,22 @@ export default {
       return '/' + path.split('/')[1]
     }
   },
+  watch: {
+    '$store.state.user.avatar'(newVal) {
+      this.timestamp = Date.now() // 头像更新时强制刷新
+    }
+  },
   methods: {
+    getFullAvatarUrl(url) {
+      if (!url) return require('@/assets/default_avatar.png')
+
+      // 已经是完整URL或base64数据
+      if (url.startsWith('http') || url.startsWith('data:')) return url
+
+      // 处理头像路径
+      const baseUrl = process.env.VUE_APP_BASE_API || window.location.origin
+      return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
+    },
     // 导航方法
     goToDashboard() {
       this.$router.push('/dashboard').catch(err => {
