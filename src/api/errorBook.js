@@ -29,8 +29,7 @@ export function addErrorNote(questionId, userId, note) {
   return request({
     url: `/api/error-book/${questionId}/note`,
     method: 'post',
-    params: { userId },
-    data: note
+    params: { userId , note},
   })
 }
 
