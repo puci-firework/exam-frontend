@@ -5,13 +5,13 @@
       <h1>我的错题本</h1>
       <div class="actions">
         <el-select v-model="selectedSubject" placeholder="按科目筛选" @change="filterBySubject">
-          <el-option label="全部科目" value=""></el-option>
+          <el-option label="全部科目" value="" />
           <el-option
             v-for="subject in subjects"
             :key="subject"
             :label="subject"
             :value="subject"
-          ></el-option>
+          />
         </el-select>
         <el-button type="primary" @click="generatePracticePaper">
           生成练习试卷(10题)
@@ -34,15 +34,16 @@
         </div>
 
         <div class="question-content">
-          <p v-html="error.question.content"></p>
+          <p v-html="error.question.content" />
 
           <div v-if="error.question.options" class="question-options">
-            <p v-for="(option, index) in parseOptions(error.question.options)"
-               :key="index"
-               :class="{
-                 'correct-option': isCorrectOption(error.question.answer, index),
-                 'user-option': isUserOption(error.userAnswer, index)
-               }"
+            <p
+              v-for="(option, index) in parseOptions(error.question.options)"
+              :key="index"
+              :class="{
+                'correct-option': isCorrectOption(error.question.answer, index),
+                'user-option': isUserOption(error.userAnswer, index)
+              }"
             >
               {{ option }}
             </p>
@@ -57,23 +58,84 @@
 
         <div class="note-section">
           <el-input
+            v-model="error.note"
             type="textarea"
             :rows="2"
             placeholder="添加笔记..."
-            v-model="error.note"
             @blur="saveNote(error.question.id, error.note)"
-          ></el-input>
+          />
         </div>
       </el-card>
     </div>
 
     <!-- 练习试卷对话框 -->
-    <el-dialog title="错题练习" :visible.sync="practiceDialogVisible" width="70%">
-      <practice-paper
-        v-if="practiceDialogVisible"
-        :questions="practicePaper.questions"
-        @submit="handlePracticeSubmit"
-      ></practice-paper>
+    <el-dialog title="错题练习" :visible.sync="practiceDialogVisible" width="70%" :before-close="handlePracticeClose">
+      <div v-if="practiceDialogVisible" class="practice-paper">
+        <el-form ref="practiceForm" label-position="top">
+          <div
+            v-for="(q, index) in practicePaper.questions"
+            :key="q.id"
+            class="question-item"
+          >
+            <el-form-item
+              :label="`${index + 1}. ${q.content}`"
+            >
+              <!-- 单选题 -->
+              <el-radio-group
+                v-if="q.type === 'single'"
+                v-model="practiceAnswers[index].answer"
+              >
+                <el-radio
+                  v-for="(option, optIndex) in parseOptions(q.options)"
+                  :key="optIndex"
+                  :label="optIndex.toString()"
+                >
+                  {{ option }}
+                </el-radio>
+              </el-radio-group>
+
+              <!-- 多选题 -->
+              <el-checkbox-group
+                v-else-if="q.type === 'multiple'"
+                v-model="practiceAnswers[index].selectedIndices"
+                @change="updateMultipleAnswer(index)"
+              >
+                <el-checkbox
+                  v-for="(option, optIndex) in parseOptions(q.options)"
+                  :key="optIndex"
+                  :label="optIndex"
+                >
+                  {{ option }}
+                </el-checkbox>
+              </el-checkbox-group>
+
+              <!-- 判断题 -->
+              <el-radio-group
+                v-else-if="q.type === 'judge'"
+                v-model="practiceAnswers[index].answer"
+              >
+                <el-radio label="true">正确</el-radio>
+                <el-radio label="false">错误</el-radio>
+              </el-radio-group>
+
+              <!-- 简答题 -->
+              <el-input
+                v-else
+                v-model="practiceAnswers[index].answer"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入答案"
+              />
+            </el-form-item>
+          </div>
+        </el-form>
+
+        <div class="submit-button">
+          <el-button type="primary" :loading="submittingPractice" @click="handlePracticeSubmit">
+            提交练习
+          </el-button>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -86,14 +148,10 @@ import {
   addErrorNote,
   generatePracticePaper
 } from '@/api/errorBook'
-import PracticePaper from '@/components/PracticePaper.vue'
 import { mapGetters } from 'vuex'
 
 export default {
   name: 'ErrorBook',
-  components: {
-    PracticePaper
-  },
   data() {
     return {
       errorQuestions: [],
@@ -102,7 +160,9 @@ export default {
       practiceDialogVisible: false,
       practicePaper: {
         questions: []
-      }
+      },
+      practiceAnswers: [],
+      submittingPractice: false
     }
   },
   computed: {
@@ -159,16 +219,113 @@ export default {
       try {
         const { data } = await generatePracticePaper(this.userId, 10)
         this.practicePaper = data
+
+        // 初始化答案结构
+        this.practiceAnswers = data.questions.map(question => {
+          const answerObj = {
+            questionId: question.id,
+            type: question.type,
+            answer: '', // 初始答案（存储索引）
+            correctAnswer: question.answer // 保存正确答案（索引）
+          }
+
+          // 多选题需要额外的数组存储选中的索引
+          if (question.type === 'multiple') {
+            answerObj.selectedIndices = [] // 存储索引数组
+          }
+
+          return answerObj
+        })
+
         this.practiceDialogVisible = true
       } catch (error) {
         this.$message.error('生成练习试卷失败')
       }
     },
 
-    handlePracticeSubmit(results) {
-      this.practiceDialogVisible = false
-      // 这里可以处理练习结果，比如显示得分等
-      this.$message.success(`练习完成！正确率: ${results.correctRate}%`)
+    // 处理练习关闭
+    handlePracticeClose(done) {
+      if (this.submittingPractice) return
+
+      this.$confirm('确定要关闭练习吗？未提交的答案将丢失', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        done()
+        this.resetPractice()
+      }).catch(() => {})
+    },
+
+    // 重置练习状态
+    resetPractice() {
+      this.practicePaper = { questions: [] }
+      this.practiceAnswers = []
+      this.submittingPractice = false
+    },
+
+    // 提交练习
+    async handlePracticeSubmit() {
+      this.submittingPractice = true
+
+      try {
+        // 验证所有题目是否完成
+        const incomplete = this.practiceAnswers.some(answer => {
+          if (answer.type === 'multiple') {
+            return !answer.answer || answer.answer === ''
+          }
+          return !answer.answer
+        })
+
+        if (incomplete) {
+          this.$message.warning('请完成所有题目后再提交')
+          return
+        }
+
+        // 计算正确率
+        let correctCount = 0
+        const results = this.practiceAnswers.map(item => {
+          let isCorrect = false
+
+          // 多选题比较
+          if (item.type === 'multiple') {
+            // 将用户答案和正确答案都转为排序后的字符串比较
+            const userAns = item.answer.split(',').sort().join(',')
+            const correctAns = item.correctAnswer.split(',').sort().join(',')
+            isCorrect = userAns === correctAns
+          } else {
+            // 其他题型直接比较与正确答案是否一致
+            isCorrect = item.answer === item.correctAnswer
+          }
+
+          if (isCorrect) correctCount++
+
+          return {
+            questionId: item.questionId,
+            userAnswer: item.answer,
+            isCorrect
+          }
+        })
+
+        const correctRate = Math.round((correctCount / this.practiceAnswers.length) * 100)
+
+        this.$message.success(`练习提交成功！正确率: ${correctRate}%`)
+
+        // 标记做对的题目为已掌握
+        await Promise.all(results
+          .filter(result => result.isCorrect)
+          .map(result => removeFromErrorBook(result.questionId, this.userId))
+        )
+
+        // 刷新错题本
+        this.fetchErrorBook()
+        this.practiceDialogVisible = false
+      } catch (error) {
+        console.error('练习提交失败:', error)
+        this.$message.error('练习提交失败')
+      } finally {
+        this.submittingPractice = false
+      }
     },
 
     extractSubjects() {
@@ -180,19 +337,34 @@ export default {
     },
 
     parseOptions(options) {
-      try {
+      if (!options) return []
+
+      // 如果是竖线分隔的选项
+      if (typeof options === 'string' && options.includes('|')) {
         return options.split('|')
-      } catch {
+      }
+
+      // 尝试解析为JSON数组
+      try {
+        return JSON.parse(options)
+      } catch (e) {
         return []
       }
     },
 
+    // 更新多选题答案
+    updateMultipleAnswer(index) {
+      // 将选中的索引数组转换为字符串存储
+      this.practiceAnswers[index].answer =
+        this.practiceAnswers[index].selectedIndices.join(',')
+    },
+
     isCorrectOption(answer, index) {
-      return answer && answer.includes(String.fromCharCode(65 + index))
+      return answer && answer.split(',').includes(index.toString())
     },
 
     isUserOption(userAnswer, index) {
-      return userAnswer && userAnswer.includes(String.fromCharCode(65 + index))
+      return userAnswer && userAnswer.split(',').includes(index.toString())
     },
 
     formatTime(time) {
@@ -205,6 +377,26 @@ export default {
 <style scoped>
 .error-book-container {
   padding: 20px;
+}
+
+.practice-paper {
+  padding: 20px;
+}
+
+.question-item {
+  margin-bottom: 30px;
+  padding: 15px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+
+.question-item:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.submit-button {
+  text-align: center;
+  margin-top: 20px;
 }
 
 .header {
