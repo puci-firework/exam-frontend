@@ -51,8 +51,8 @@
         </div>
 
         <div class="answer-section">
-          <p><strong>你的答案:</strong> {{ error.userAnswer }}</p>
-          <p><strong>正确答案:</strong> {{ error.question.answer }}</p>
+          <p><strong>你的答案:</strong> {{ formatUserAnswer(error) }}</p>
+          <p><strong>正确答案:</strong> {{ formatCorrectAnswer(error.question) }}</p>
           <p><strong>来源:</strong> {{ error.source }} - {{ formatTime(error.errorTime) }}</p>
         </div>
 
@@ -172,6 +172,35 @@ export default {
     this.fetchErrorBook()
   },
   methods: {
+    // 格式化用户答案显示
+    formatUserAnswer(error) {
+      if (!error.userAnswer) return '未作答'
+
+      const options = this.parseOptions(error.question.options)
+
+      // 多选题处理
+      if (error.question.type === 'multiple') {
+        const indices = error.userAnswer.split(',')
+        return indices.map(idx => {
+          const optIdx = parseInt(idx)
+          return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+        }).join('，')
+      }
+
+      // 单选题处理
+      if (error.question.type === 'single') {
+        const optIdx = parseInt(error.userAnswer)
+        return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+      }
+
+      // 判断题处理
+      if (error.question.type === 'judge') {
+        return error.userAnswer === 'true' ? '正确' : '错误'
+      }
+
+      // 简答题直接返回
+      return error.userAnswer
+    },
     async fetchErrorBook() {
       try {
         const { data } = await getErrorBook(this.userId)
@@ -213,6 +242,35 @@ export default {
       } catch (error) {
         this.$message.error('保存笔记失败')
       }
+    },
+    // 格式化正确答案显示
+    formatCorrectAnswer(question) {
+      if (!question.answer) return '无'
+
+      const options = this.parseOptions(question.options)
+
+      // 多选题处理
+      if (question.type === 'multiple') {
+        const indices = question.answer.split(',')
+        return indices.map(idx => {
+          const optIdx = parseInt(idx)
+          return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+        }).join('，')
+      }
+
+      // 单选题处理
+      if (question.type === 'single') {
+        const optIdx = parseInt(question.answer)
+        return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+      }
+
+      // 判断题处理
+      if (question.type === 'judge') {
+        return question.answer === 'true' ? '正确' : '错误'
+      }
+
+      // 简答题直接返回
+      return question.answer
     },
 
     async generatePracticePaper() {

@@ -13,7 +13,12 @@
       <el-date-picker
         v-model="homework.deadline"
         type="datetime"
-        placeholder="选择截止时间">
+        placeholder="选择截止时间"
+        :disabled-date="disablePastDates"
+        :picker-options="deadlinePickerOptions"
+        value-format="yyyy-MM-dd HH:mm:ss"
+        @change="validateDeadline"
+      >
       </el-date-picker>
     </el-form-item>
 
@@ -53,15 +58,32 @@ export default {
         title: [{ required: true, message: '请输入作业标题', trigger: 'blur' }],
         subject: [{ required: true, message: '请输入科目', trigger: 'blur' }],
         deadline: [{ required: true, message: '请选择截止时间', trigger: 'change' }]
+      },
+      // 截止时间选择器配置
+      deadlinePickerOptions: {
+        disabledDate: this.disablePastDates
       }
     }
   },
   methods: {
+    // 禁用过去的时间
+    disablePastDates(time) {
+      return time.getTime() < Date.now() - 60000
+    },
+    validateDeadline() {
+      if (!this.homework.deadline) return
+      const deadline = new Date(this.homework.deadline)
+      if (deadline < new Date()) {
+        this.$message.warning('截止时间不能早于当前时间')
+        this.homework.deadline = ''
+      }
+    },
     updateQuestions(questions) {
       this.homework.questions = questions
     },
-    formatDateTime(date) {
-      return new Date(date).toISOString().split('.')[0] // 格式化为"YYYY-MM-DDTHH:mm:ss"
+    formatToISO(dateString) {
+      if (!dateString) return null
+      return dateString.replace(' ', 'T')
     },
     async submitForm() {
       try {
@@ -79,7 +101,7 @@ export default {
           title: this.homework.title,
           subject: this.homework.subject,
           description: this.homework.description,
-          deadline: this.formatDateTime(this.homework.deadline),
+          deadline: this.formatToISO(this.homework.deadline),
           teacherId: this.$store.state.user.userId,
           questions: this.homework.questions.map(q => ({
             content: q.content,

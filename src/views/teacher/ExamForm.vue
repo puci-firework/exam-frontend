@@ -9,13 +9,17 @@
     <el-form-item label="考试描述" prop="description">
       <el-input type="textarea" v-model="exam.description"></el-input>
     </el-form-item>
+    <!-- 考试时间设置 -->
     <el-row>
       <el-col :span="12">
         <el-form-item label="开始时间" prop="startTime">
           <el-date-picker
             v-model="exam.startTime"
             type="datetime"
-            placeholder="选择开始时间">
+            placeholder="选择开始时间"
+            :disabled-date="disablePastDates"
+            :picker-options="startTimePickerOptions"
+            value-format="yyyy-MM-dd HH:mm:ss">
           </el-date-picker>
         </el-form-item>
       </el-col>
@@ -24,13 +28,17 @@
           <el-date-picker
             v-model="exam.endTime"
             type="datetime"
-            placeholder="选择结束时间">
+            placeholder="选择结束时间"
+            :disabled-date="disablePastDates"
+            :picker-options="endTimePickerOptions"
+            value-format="yyyy-MM-dd HH:mm:ss">
           </el-date-picker>
         </el-form-item>
       </el-col>
     </el-row>
+
     <el-form-item label="考试时长(分钟)" prop="duration">
-      <el-input-number v-model="exam.duration" :min="10" :max="180"></el-input-number>
+      <el-input-number v-model="exam.duration" :min="1"></el-input-number>
     </el-form-item>
 
     <el-divider>考试题目</el-divider>
@@ -73,12 +81,30 @@ export default {
         startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
         endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }],
         duration: [{ required: true, message: '请输入考试时长', trigger: 'blur' }]
+      },
+      // 开始时间选择器配置
+      startTimePickerOptions: {
+        disabledDate: this.disablePastDates
+      },
+
+      // 结束时间选择器配置
+      endTimePickerOptions: {
+        disabledDate: (time) => {
+          // 结束时间不能早于开始时间
+          const startTime = this.exam.startTime ? new Date(this.exam.startTime).getTime() : 0
+          return time.getTime() < startTime || this.disablePastDates(time)
+        }
       }
     }
   },
   methods: {
-    formatDateTime(date) {
-      return new Date(date).toISOString().split('.')[0] // 格式化为"YYYY-MM-DDTHH:mm:ss"
+    // 禁用过去的时间
+    disablePastDates(time) {
+      return time.getTime() < Date.now() - 60000
+    },
+    formatToISO(dateString) {
+      if (!dateString) return null
+      return dateString.replace(' ', 'T')
     },
     updateQuestions(questions) {
       this.exam.questions = questions
@@ -99,8 +125,8 @@ export default {
           title: this.exam.title,
           subject: this.exam.subject,
           description: this.exam.description,
-          startTime: this.formatDateTime(this.exam.startTime),
-          endTime: this.formatDateTime(this.exam.endTime),
+          startTime: this.formatToISO(this.exam.startTime), // 修改这里
+          endTime: this.formatToISO(this.exam.endTime), // 修改这里
           duration: this.exam.duration,
           teacherId: this.$store.state.user.userId,
           questions: this.exam.questions.map(q => ({

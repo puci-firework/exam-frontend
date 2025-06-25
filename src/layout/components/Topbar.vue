@@ -8,34 +8,40 @@
       mode="horizontal"
       @select="handleSelect"
     >
-
-      <!-- 首页菜单项 -->
+      <!-- 首页菜单项 - 所有角色都显示 -->
       <el-menu-item index="/dashboard" @click="goToDashboard">首页</el-menu-item>
 
-      <!-- 通用功能 -->
-      <!-- 动态显示考试菜单项 -->
-      <el-menu-item
-        index="/exam/list"
-        @click="goToExamList">
-        {{ isTeacher || isAdmin ? '我的考试' : '所有考试' }}
-      </el-menu-item>
+      <!-- 管理员只显示首页和用户管理 -->
+      <template v-if="!isAdmin">
+        <!-- 通用功能 -->
+        <!-- 动态显示考试菜单项 -->
+        <el-menu-item
+          index="/exam/list"
+          @click="goToExamList">
+          {{ isTeacher ? '我的考试' : '所有考试' }}
+        </el-menu-item>
 
-      <!-- 统一作业菜单项 -->
-      <el-menu-item
-        index="/homework/list"
-        @click="goToHomeworkList">
-        {{ isTeacher || isAdmin ? '我的作业' : '所有作业' }}
-      </el-menu-item>
-      <el-menu-item index="/score/list" @click="goToScoreList">成绩查询</el-menu-item>
-      <el-menu-item v-if="!isTeacher" index="/error-book/list" @click="goToErrorBook">错题本</el-menu-item>
+        <!-- 统一作业菜单项 -->
+        <el-menu-item
+          index="/homework/list"
+          @click="goToHomeworkList">
+          {{ isTeacher ? '我的作业' : '所有作业' }}
+        </el-menu-item>
 
-      <!-- 教师专属功能 -->
-      <el-submenu v-if="isTeacher" index="teacher-actions">
-        <template #title>教师操作</template>
-        <el-menu-item index="/exam/create" @click="goToCreateExam">创建考试</el-menu-item>
-        <el-menu-item index="/homework/create" @click="goToCreateHomework">布置作业</el-menu-item>
-        <el-menu-item index="/teacher/dashboard" @click="goToTeacherDashboard">教师中心</el-menu-item>
-      </el-submenu>
+        <!-- 成绩查询 - 学生显示，教师不显示 -->
+        <el-menu-item v-if="!isTeacher" index="/score/list" @click="goToScoreList">成绩查询</el-menu-item>
+
+        <!-- 错题本 - 学生显示 -->
+        <el-menu-item v-if="!isTeacher" index="/error-book/list" @click="goToErrorBook">错题本</el-menu-item>
+
+        <!-- 教师专属功能 -->
+        <el-submenu v-if="isTeacher" index="teacher-actions">
+          <template #title>教师操作</template>
+          <el-menu-item index="/exam/create" @click="goToCreateExam">创建考试</el-menu-item>
+          <el-menu-item index="/homework/create" @click="goToCreateHomework">布置作业</el-menu-item>
+          <el-menu-item index="/teacher/dashboard" @click="goToTeacherDashboard">教师中心</el-menu-item>
+        </el-submenu>
+      </template>
 
       <!-- 管理员专属功能 -->
       <el-menu-item v-if="isAdmin" index="/admin/users" @click="goToUserManagement">用户管理</el-menu-item>

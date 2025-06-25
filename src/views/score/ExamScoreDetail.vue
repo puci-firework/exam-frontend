@@ -42,11 +42,11 @@
           </div>
           <div class="student-answer">
             <el-tag size="small">学生答案</el-tag>
-            <span>{{ answer.answer || '未作答' }}</span>
+            <span>{{ formatStudentAnswer(answer) || '未作答' }}</span>
           </div>
           <div class="correct-answer">
             <el-tag size="small" type="success">正确答案</el-tag>
-            <span>{{ answer.question.answer }}</span>
+            <span>{{ formatCorrectAnswer(answer.question) }}</span>
           </div>
         </div>
       </div>
@@ -93,6 +93,81 @@ export default {
     }
   },
   methods: {
+    // 格式化学生答案
+    formatStudentAnswer(answer) {
+      if (!answer.answer) return ''
+
+      const options = this.parseOptions(answer.question.options)
+
+      // 多选题处理
+      if (answer.question.type === 'multiple') {
+        const indices = answer.answer.split(',')
+        return indices.map(idx => {
+          const optIdx = parseInt(idx)
+          return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+        }).join('，')
+      }
+
+      // 单选题处理
+      if (answer.question.type === 'single') {
+        const optIdx = parseInt(answer.answer)
+        return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+      }
+
+      // 判断题处理
+      if (answer.question.type === 'judge') {
+        return answer.answer === 'true' ? '正确' : '错误'
+      }
+
+      // 简答题直接返回
+      return answer.answer
+    },
+
+    // 格式化正确答案
+    formatCorrectAnswer(question) {
+      if (!question.answer) return '无'
+
+      const options = this.parseOptions(question.options)
+
+      // 多选题处理
+      if (question.type === 'multiple') {
+        const indices = question.answer.split(',')
+        return indices.map(idx => {
+          const optIdx = parseInt(idx)
+          return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+        }).join('，')
+      }
+
+      // 单选题处理
+      if (question.type === 'single') {
+        const optIdx = parseInt(question.answer)
+        return options[optIdx] || `选项${String.fromCharCode(65 + optIdx)}`
+      }
+
+      // 判断题处理
+      if (question.type === 'judge') {
+        return question.answer === 'true' ? '正确' : '错误'
+      }
+
+      // 简答题直接返回
+      return question.answer
+    },
+    // 解析选项
+    parseOptions(options) {
+      if (!options) return []
+
+      // 如果是竖线分隔的选项
+      if (typeof options === 'string' && options.includes('|')) {
+        return options.split('|')
+      }
+
+      // 尝试解析为JSON数组
+      try {
+        return JSON.parse(options)
+      } catch (e) {
+        return []
+      }
+    },
     async fetchScoreDetail() {
       try {
         this.loading = true

@@ -1,174 +1,215 @@
 <template>
   <div class="dashboard-container">
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="mb-4">
-      <el-col v-for="(card, index) in statCards" :key="index" :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-value">{{ card.value }}</div>
-            <div class="stat-title">{{ card.title }}</div>
+    <!-- 教师和管理员欢迎界面 -->
+    <template v-if="isTeacher || isAdmin">
+      <div class="welcome-container">
+        <el-card shadow="hover" class="welcome-card">
+          <div class="welcome-content">
+            <h1>欢迎使用考试作业系统</h1>
+            <p v-if="isTeacher">教师工作台 - 您可以通过顶部菜单管理考试和作业</p>
+            <p v-if="isAdmin">系统管理台 - 您可以通过顶部菜单管理系统设置</p>
+            <div class="quick-actions">
+              <el-button
+                v-if="isTeacher"
+                type="primary"
+                icon="el-icon-plus"
+                @click="$router.push('/teacher/exams')"
+              >
+                创建考试
+              </el-button>
+              <el-button
+                v-if="isTeacher"
+                type="success"
+                icon="el-icon-plus"
+                @click="$router.push('/teacher/homeworks')"
+              >
+                创建作业
+              </el-button>
+              <el-button
+                v-if="isAdmin"
+                type="warning"
+                icon="el-icon-user"
+                @click="$router.push('/admin/users')"
+              >
+                用户管理
+              </el-button>
+            </div>
           </div>
-          <div class="stat-icon" :style="{ backgroundColor: card.color }">
-            <i :class="card.icon" />
-          </div>
         </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 主要内容区 -->
-    <el-row :gutter="20">
-      <!-- 近期考试 -->
-      <el-col :span="12">
-        <el-card shadow="hover" header="近期考试">
-          <el-table
-            v-loading="loading.exams"
-            :data="homeData.recentExams"
-            height="300"
-            empty-text="暂无近期考试"
-          >
-            <el-table-column prop="name" label="考试名称" width="180" />
-            <el-table-column label="考试时间">
-              <template #default="{row}">
-                {{ formatDateTime(row.startTime) }} ~
-                {{ formatDateTime(row.endTime) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="100">
-              <template #default="{row}">
-                <el-tag :type="getStatusTagType(row.status)" size="small">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180">
-              <template #default="{row}">
-                <el-button-group>
-                  <el-button size="mini" @click.stop="handleViewExam(row.id)">详情</el-button>
-                  <el-button
-                    size="mini"
-                    type="primary"
-                    :disabled="row.status !== 2"
-                    @click.stop="handleStartExam(row.id)"
-                  >
-                    {{ isTeacher ? '' : '开始' }}
-                  </el-button>
-                </el-button-group>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-
-      <!-- 待完成作业 -->
-      <el-col :span="12">
-        <el-card shadow="hover" header="待完成作业">
-          <el-table
-            v-loading="loading.homeworks"
-            :data="homeData.recentHomeworks"
-            height="300"
-            empty-text="暂无待完成作业"
-          >
-            <el-table-column prop="title" label="作业名称" width="180" />
-            <el-table-column label="截止时间">
-              <template #default="{row}">
-                {{ formatDateTime(row.deadline) }}
-                <el-tag
-                  v-if="isUrgent(row.deadline)"
-                  type="danger"
-                  size="mini"
-                >
-                  即将截止
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180">
-              <template #default="{row}">
-                <el-button-group>
-                  <el-button size="mini" @click.stop="handleViewHomework(row.id)">详情</el-button>
-                  <el-button
-                    size="mini"
-                    type="primary"
-                    :disabled="isTeacher"
-                    @click.stop="handleDoHomework(row.id)"
-                  >
-                    {{ isTeacher ? '' : '完成作业' }}
-                  </el-button>
-                </el-button-group>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 最新成绩 -->
-    <el-card shadow="hover" class="mt-4" header="最新成绩">
-      <div class="score-header">
-        <el-tabs v-model="activeScoreTab" @tab-click="handleScoreTabChange">
-          <el-tab-pane label="考试成绩" name="exams" />
-          <el-tab-pane label="作业成绩" name="homeworks" />
-        </el-tabs>
-        <el-button
-          type="text"
-          icon="el-icon-refresh"
-          style="margin-left: auto;"
-          @click="loadScoreData"
-        />
       </div>
+    </template>
 
-      <el-table
-        v-loading="loading.scores"
-        :data="scoreData"
-        empty-text="暂无成绩记录"
-      >
-        <el-table-column
-          :prop="activeScoreTab === 'exams' ? 'examName' : 'homeworkName'"
-          :label="activeScoreTab === 'exams' ? '考试名称' : '作业名称'"
-          width="200"
-        />
-        <el-table-column label="分数/总分" width="150">
-          <template #default="{row}">
-            {{ row.score }} / {{ row.totalScore }}
-            <el-progress
-              :percentage="row.percentage"
-              :color="getScoreColor(row.percentage)"
-              :show-text="false"
-              :stroke-width="6"
-              class="score-progress"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="百分比" width="120">
-          <template #default="{row}">
-            <el-tag :type="getScoreTagType(row.percentage)">
-              {{ row.percentage }}%
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="{row}">
-            <el-tag :type="getStatusTagType(row.status)">
-              {{ row.status === 'PASSED' ? '及格' : '不及格' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="时间" width="180">
-          <template #default="{row}">
-            {{ formatDate(row.date) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="{row}">
-            <el-button
-              size="mini"
-              @click="handleViewScoreDetail(row.id, activeScoreTab)"
+    <!-- 学生仪表盘 -->
+    <template v-else>
+      <!-- 统计卡片 -->
+      <el-row :gutter="20" class="mb-4">
+        <el-col v-for="(card, index) in statCards" :key="index" :span="6">
+          <el-card shadow="hover" class="stat-card">
+            <div class="stat-content">
+              <div class="stat-value">{{ card.value }}</div>
+              <div class="stat-title">{{ card.title }}</div>
+            </div>
+            <div class="stat-icon" :style="{ backgroundColor: card.color }">
+              <i :class="card.icon" />
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- 主要内容区 -->
+      <el-row :gutter="20">
+        <!-- 近期考试 -->
+        <el-col :span="12">
+          <el-card shadow="hover" header="近期考试">
+            <el-table
+              v-loading="loading.exams"
+              :data="homeData.recentExams"
+              height="300"
+              empty-text="暂无近期考试"
             >
-              详情
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+              <el-table-column prop="name" label="考试名称" width="180" />
+              <el-table-column label="考试时间">
+                <template #default="{row}">
+                  {{ formatDateTime(row.startTime) }} ~
+                  {{ formatDateTime(row.endTime) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="100">
+                <template #default="{row}">
+                  <el-tag :type="getStatusTagType(row.status)" size="small">
+                    {{ getStatusText(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180">
+                <template #default="{row}">
+                  <el-button-group>
+                    <el-button size="mini" @click.stop="handleViewExam(row.id)">详情</el-button>
+                    <el-button
+                      size="mini"
+                      type="primary"
+                      :disabled="row.status !== 2"
+                      @click.stop="handleStartExam(row.id)"
+                    >
+                      开始
+                    </el-button>
+                  </el-button-group>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
+
+        <!-- 待完成作业 -->
+        <el-col :span="12">
+          <el-card shadow="hover" header="待完成作业">
+            <el-table
+              v-loading="loading.homeworks"
+              :data="homeData.recentHomeworks"
+              height="300"
+              empty-text="暂无待完成作业"
+            >
+              <el-table-column prop="title" label="作业名称" width="180" />
+              <el-table-column label="截止时间">
+                <template #default="{row}">
+                  {{ formatDateTime(row.deadline) }}
+                  <el-tag
+                    v-if="isUrgent(row.deadline)"
+                    type="danger"
+                    size="mini"
+                  >
+                    即将截止
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="180">
+                <template #default="{row}">
+                  <el-button-group>
+                    <el-button size="mini" @click.stop="handleViewHomework(row.id)">详情</el-button>
+                    <el-button
+                      size="mini"
+                      type="primary"
+                      @click.stop="handleDoHomework(row.id)"
+                    >
+                      完成作业
+                    </el-button>
+                  </el-button-group>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- 最新成绩 -->
+      <el-card shadow="hover" class="mt-4" header="最新成绩">
+        <div class="score-header">
+          <el-tabs v-model="activeScoreTab" @tab-click="handleScoreTabChange">
+            <el-tab-pane label="考试成绩" name="exams" />
+            <el-tab-pane label="作业成绩" name="homeworks" />
+          </el-tabs>
+          <el-button
+            type="text"
+            icon="el-icon-refresh"
+            style="margin-left: auto;"
+            @click="loadScoreData"
+          />
+        </div>
+
+        <el-table
+          v-loading="loading.scores"
+          :data="scoreData"
+          empty-text="暂无成绩记录"
+        >
+          <el-table-column
+            :prop="activeScoreTab === 'exams' ? 'examName' : 'homeworkName'"
+            :label="activeScoreTab === 'exams' ? '考试名称' : '作业名称'"
+            width="200"
+          />
+          <el-table-column label="分数/总分" width="150">
+            <template #default="{row}">
+              {{ row.score }} / {{ row.totalScore }}
+              <el-progress
+                :percentage="row.percentage"
+                :color="getScoreColor(row.percentage)"
+                :show-text="false"
+                :stroke-width="6"
+                class="score-progress"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="百分比" width="120">
+            <template #default="{row}">
+              <el-tag :type="getScoreTagType(row.percentage)">
+                {{ row.percentage }}%
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="120">
+            <template #default="{row}">
+              <el-tag :type="getStatusTagType(row.status)">
+                {{ row.status === 'PASSED' ? '及格' : '不及格' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="时间" width="180">
+            <template #default="{row}">
+              {{ formatDate(row.date) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default="{row}">
+              <el-button
+                size="mini"
+                @click="handleViewScoreDetail(row.id, activeScoreTab)"
+              >
+                详情
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+    </template>
   </div>
 </template>
 
@@ -182,47 +223,35 @@ export default {
   name: 'Dashboard',
   data() {
     return {
-      homeData: {
-        recentExams: [],
-        recentHomeworks: [],
-        latestScores: []
-      },
-      scoreData: [],
-      activeScoreTab: 'exams',
-      loading: {
-        exams: true,
-        homeworks: true,
-        scores: true
-      },
+      // ...其他数据保持不变...
       statCards: [
         { title: '待考科目', value: 0, icon: 'el-icon-date', color: '#409EFF' },
         { title: '待交作业', value: 0, icon: 'el-icon-document', color: '#67C23A' },
-        {
-          title: this.isAdmin ? '总用户数' : '错题数量',
-          value: 0,
-          icon: this.isAdmin ? 'el-icon-user' : 'el-icon-collection',
-          color: '#F56C6C'
-        },
+        { title: '错题数量', value: 0, icon: 'el-icon-collection', color: '#F56C6C' },
         { title: '平均成绩', value: '--', icon: 'el-icon-data-analysis', color: '#E6A23C' }
       ]
     }
   },
-  // computed部分保持不变
   computed: {
     userId() {
-      return this.$store.state.user.userId || 1 // 默认测试用户ID
+      return this.$store.state.user.userId || 1
     },
     isTeacher() {
       return this.$store.state.user.role === 'TEACHER'
     },
     isAdmin() {
       return this.$store.state.user.role === 'ADMIN'
+    },
+    isStudent() {
+      return this.$store.state.user.role === 'STUDENT'
     }
   },
   created() {
     this.loadHomeData()
-    this.loadScoreData()
-    this.loadErrorBookCount() // 新增：加载错题数量
+    if (this.isStudent) {
+      this.loadScoreData()
+      this.loadErrorBookCount()
+    }
   },
   methods: {
     // 新增：加载错题数量
@@ -245,8 +274,10 @@ export default {
         // 数据转换适配
         this.homeData = this.transformData(data)
 
-        // 更新统计卡片
-        this.updateStatCards()
+        // 更新统计卡片（仅学生）
+        if (this.isStudent) {
+          this.updateStatCards()
+        }
       } catch (error) {
         console.error('加载首页数据失败:', error)
         this.$message.error('数据加载失败: ' + (error.message || '未知错误'))
@@ -433,6 +464,32 @@ export default {
 <style lang="scss" scoped>
 .dashboard-container {
   padding: 20px;
+  min-height: calc(100vh - 84px); // 减去头部高度
+
+  .welcome-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 200px); // 适当高度
+
+    .welcome-card {
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+      padding: 40px;
+
+      h1 {
+        font-size: 28px;
+        margin-bottom: 20px;
+        color: #409EFF;
+      }
+
+      p {
+        font-size: 16px;
+        color: #666;
+      }
+    }
+  }
 
   .stat-card {
     display: flex;
